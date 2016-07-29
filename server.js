@@ -4,8 +4,44 @@ var MongoClient = require('mongodb').MongoClient;
 
 
 var app = express();
-
+insertLink("http://www.facebook.com",function(){
+    /*getAllLinks();*/
+});
+getLinkById("57979c44cbbd23c6d4433611");
 //Useful functions
+
+function getAllLinks(){
+    MongoClient.connect("mongodb://localhost:27017/url-shortener-db", function(err, db) {
+        if(err) throw err;
+        console.log("Connected to the database");
+        db.collection('links',function(err,collection){
+            if(err) throw err;
+            console.log("collection: "+ collection);
+            collection.find().toArray(function(err,data){
+               if(err) throw err;
+               console.log(JSON.stringify(data));
+               db.close();
+            });
+        });
+      });
+}
+
+function getLinkById(id){
+    MongoClient.connect("mongodb://localhost:27017/url-shortener-db", function(err, db) {
+        if(err) throw err;
+        console.log("Connected to the database");
+        db.collection('links',function(err,collection){
+            if(err) throw err;
+            console.log("collection: "+ collection);
+            collection.find({"id":Number(id)}).toArray(function(err,data){
+               if(err) throw err;
+               console.log(JSON.stringify(data));
+               db.close();
+            });
+        });
+      });
+}
+
 function getLinkCollection(){
     // Connect to the db
     MongoClient.connect("mongodb://localhost:27017/url-shortener-db", function(err, db) {
@@ -27,11 +63,16 @@ function insertLink(link,callback){
         db.collection('links',function(err,collection){
             if(err) throw err;
             console.log("collection: "+ collection);
-            collection.insert({"original_link":link},function(err,data){
+            //Find new ID
+            collection.count(function(err,count){
+                if (err) throw err;
+                collection.insert({"original_link":link,"id":Number(count + 1)},function(err,data){
                 if(err) throw err;
-                console.log(data);
-                callback(JSON.stringify({"original_link":link,"shortened_link":"https://api-projects-backend-benobab.c9users.io/"+data["ops"][0]._id}));
+                console.log(data + "\n inserted");
+                callback(JSON.stringify({"original_link":link,"shortened_link":"https://api-projects-backend-benobab.c9users.io/"+String(Number(count + 1))}));
             });
+            })
+            
         });
       });
 }
@@ -39,18 +80,21 @@ function insertLink(link,callback){
 function redirectWithId(id,callback){
     MongoClient.connect("mongodb://localhost:27017/url-shortener-db", function(err, db) {
         if(err){
-            callback(err,null);
+            callback("error",null);
+            return;
         }
         console.log("Connected to the database bitches");
         db.collection('links',function(err,collection){
             if(err){
-                callback(err,null);
+                callback("error",null);
+                return;
             }
             console.log("collection: "+ collection);
-            collection.find({"_id":id}).toArray(function(err,data){
+            collection.find({"id":Number(id)}).toArray(function(err,data){
                 console.log(data.length);
                 if(err != null || data.length <= 0){
-                    callback(err,null);
+                    callback("error",null);
+                    return;
                 }
                 callback(null,data[0].original_link);
             });
@@ -75,22 +119,24 @@ app.get('*',function(req,res){
           res.end(data);
        });
    }else{
-/*       if(isNumeric(path)){*/
+       if(isNumeric(path)){
         redirectWithId(path,function(err,data){
             if(err){
-                console.log(err);
-                return;
+                endWithError(res);
             }else{
                 console.log("redirect to :"+data);
                 res.redirect(data);
             }
         });
-       /*}*/
-       console.log("Let's see if this is a Uri already into the db!");
+       }else{
+           endWithError(res);
+       }
    }
 });
 
-
+function endWithError(res){
+    res.end(JSON.stringify({"error":"Please enter a valid id or a valid URL"}));
+}
 app.listen(8080,function(){
     console.log("App running on 8080!");
 });
