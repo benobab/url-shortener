@@ -1,15 +1,11 @@
 var express = require("express");
 var validurl = require("valid-url");
 var MongoClient = require('mongodb').MongoClient;
-
+var path = require('path');
 
 var app = express();
-insertLink("http://www.facebook.com",function(){
-    /*getAllLinks();*/
-});
-getLinkById("57979c44cbbd23c6d4433611");
-//Useful functions
 
+//Useful functions
 function getAllLinks(){
     MongoClient.connect("mongodb://localhost:27017/url-shortener-db", function(err, db) {
         if(err) throw err;
@@ -109,6 +105,9 @@ function isNumeric(n) {
 }
 
 //ROUTES
+app.get('/', function(req, res) {
+    res.sendfile(path.join(__dirname + '/views/index.html'));
+});
 app.get('*',function(req,res){
    var path = req.path.substr(1,req.path.length);
    console.log("GET request on "+path);
